@@ -8,7 +8,7 @@ import customtkinter as ctk
 import tkinter.messagebox as mb
 
 # utils
-from utils.windows import SystemWideMutex
+from utils.platform import SystemWideMutex
 from utils.constants import APP_NAME_EN, APP_NAME_JP
 from utils.ctk import show_error_dialog
 from utils.ais_logging import setup_logging, setup_logging_ctk, write_log

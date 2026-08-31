@@ -1,5 +1,6 @@
 # std
 import os
+import sys
 import shutil
 import urllib.request
 import zipfile
@@ -178,11 +179,30 @@ DEFAULT_FFMPEG_ZIP_URL = (
 # fmt: on
 
 
+def _ensure_path_tool(tool_name: str) -> Path:
+    """
+    PATH 上にあるツールを探す。
+
+    NOTE
+        Windows 版は zip をダウンロードして同梱する方式だが、
+        macOS 向けの公式なポータブルビルドが存在しない。
+        当面は Homebrew などで入れてもらう前提とし、PATH から探す。
+    """
+    tool_path = shutil.which(tool_name)
+    if tool_path is None:
+        raise FileNotFoundError(
+            f"{tool_name} が見つかりません。`brew install {tool_name}` でインストールしてください。"
+        )
+    return Path(tool_path)
+
+
 def ensure_ffmpeg() -> Path:
     """
     ffmpeg を呼び出し可能な状態にする
-    ffmpeg.exe のパスを返す
+    ffmpeg の実行ファイルのパスを返す
     """
+    if sys.platform == "darwin":
+        return _ensure_path_tool("ffmpeg")
     ffmpeg_zip_url = USER_PROPERTIES.get("ffmpeg_zip_url", DEFAULT_FFMPEG_ZIP_URL)
     return _ensure_web_tool(ffmpeg_zip_url, "ffmpeg.exe")
 
@@ -198,8 +218,10 @@ DEFAULT_GIFSCICLE_ZIP_URL = (
 def ensure_gifsicle() -> Path:
     """
     gifsicle を呼び出し可能な状態にする
-    gifsicle.exe のパスを返す
+    gifsicle の実行ファイルのパスを返す
     """
+    if sys.platform == "darwin":
+        return _ensure_path_tool("gifsicle")
     gifscicle_zip_url = USER_PROPERTIES.get(
         "gifscicle_zip_url", DEFAULT_GIFSCICLE_ZIP_URL
     )

@@ -22,7 +22,7 @@ from utils.duration_and_frame_rate import (
 )
 from utils.constants import THUMBNAIL_HEIGHT, CAPTURE_FRAME_BUFFER_DURATION_IN_SEC
 from utils.metadata import AspectRatioPattern, PlaybackMode, ResolutionPattern
-from utils.windows import file_to_clipboard
+from utils.platform import file_to_clipboard
 from utils.ctk import show_notify_label, show_error_dialog
 from utils.capture import *
 from utils.std import MultiscaleSequence

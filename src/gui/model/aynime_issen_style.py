@@ -3,7 +3,7 @@ import customtkinter as ctk
 
 # utils
 from utils.capture import *
-from utils.windows import GlobalHotkey
+from utils.platform import GlobalHotkey
 
 # model
 from gui.model.contents_cache import ImageModel, VideoModel

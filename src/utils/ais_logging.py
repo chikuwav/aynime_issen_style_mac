@@ -13,7 +13,13 @@ from pathlib import Path
 import os
 import traceback
 import inspect
-import msvcrt
+
+# NOTE
+#   msvcrt は Windows 専用。
+#   macOS 版の aynime_capture は Python 実装なので、
+#   Windows HANDLE を渡すパイプ経由のログ転送そのものが不要。
+if sys.platform == "win32":
+    import msvcrt
 
 # tk
 import tkinter.messagebox
@@ -274,9 +280,16 @@ def setup_logging():
         pass
 
     # aynime_capture ロギング設定
-    read_pipe_fd, write_pipe_fd = os.pipe()
-    ayc.set_log_handle(msvcrt.get_osfhandle(write_pipe_fd))
-    threading.Thread(target=_pipe_forwarder, args=(read_pipe_fd,), daemon=True).start()
+    # NOTE
+    #   Windows 版の aynime_capture は C++ なので、
+    #   匿名パイプの Windows HANDLE を渡してログを受け取る。
+    #   macOS 版は Python 実装で logging をそのまま使うため、この配管は不要。
+    if sys.platform == "win32":
+        read_pipe_fd, write_pipe_fd = os.pipe()
+        ayc.set_log_handle(msvcrt.get_osfhandle(write_pipe_fd))
+        threading.Thread(
+            target=_pipe_forwarder, args=(read_pipe_fd,), daemon=True
+        ).start()
 
     # ログ関係の初期化完了をログに流す
     write_log("info", f"Logging initialized. file={LOG_DIR_PATH}")

@@ -42,7 +42,7 @@ from utils.duration_and_frame_rate import DFR_MAP
 from utils.constants import *
 from utils.metadata import PlaybackMode, ResolutionPattern
 from utils.metadata import AspectRatioPattern, ContentsMetadata
-from utils.windows import sanitize_text
+from utils.std import sanitize_text
 from utils.ais_logging import write_log, PerfLogger
 
 

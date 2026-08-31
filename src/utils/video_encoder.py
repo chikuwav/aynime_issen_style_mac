@@ -1,5 +1,6 @@
 # std
 from pathlib import Path
+import sys
 import subprocess
 import re
 from copy import copy
@@ -15,6 +16,13 @@ from utils.constants import METADATA_KEY
 from utils.metadata import ContentsMetadata
 from utils.user_properties import USER_PROPERTIES
 from utils.ais_logging import write_log
+
+
+# サブプロセスにコンソールウィンドウを出さないためのフラグ
+# NOTE
+#   CREATE_NO_WINDOW は Windows 専用の属性。
+#   macOS では指定するものが無いので 0 にする。
+_NO_WINDOW_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
 _H264_ENCODERS_CACHE: set[str] = set()
@@ -41,7 +49,7 @@ def _enumerate_encoders(ffmpeg_path: Path) -> set[str]:
         errors="replace",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        creationflags=subprocess.CREATE_NO_WINDOW,
+        creationflags=_NO_WINDOW_FLAGS,
     )
     encoders_str = cp.stdout + "\n" + cp.stderr
     # 問い合わせ結果をパース
@@ -212,7 +220,7 @@ def video_encode_h264(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 bufsize=1024 * 1024,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                creationflags=_NO_WINDOW_FLAGS,
             )
             if proc.stdin is None:
                 raise ValueError("subprocess stdin is None")
@@ -404,7 +412,7 @@ def video_encode_gif(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=0,
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            creationflags=_NO_WINDOW_FLAGS,
         )
         if p_ff.stdin is None:
             raise ValueError("p_ff.stdin is None")
@@ -418,7 +426,7 @@ def video_encode_gif(
             stdout=f_out,  # 直接ファイルへ（メモリに溜めない）
             stderr=subprocess.PIPE,
             bufsize=0,
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            creationflags=_NO_WINDOW_FLAGS,
         )
 
         # 親プロセス側では ffmpeg の stdout を閉じる（gifsicle 側が読み切る）

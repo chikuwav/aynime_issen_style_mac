@@ -1,5 +1,6 @@
 # std
 from pathlib import Path
+import sys
 
 
 # アプリ名
@@ -26,18 +27,44 @@ WINDOW_INIT_WIDTH = 640
 WINDOW_INIT_HEIGHT = 960
 
 # 共通して使用するフォント
-DEFAULT_FONT_FAMILY = "Yu Gothic UI"
-DEFAULT_FONT_PATH = Path("C:\\Windows\\Fonts\\YuGothM.ttc")
-OVERLAY_FONT_FAMILY = "Meiryo UI Bold"
-OVERLAY_FONT_PATH = Path("C:\\Windows\\Fonts\\Meiryob.ttc")
-NUMERIC_FONT_FAMILY = "Consolas"
-NUMERIC_FONT_PATH = Path("C:\\Windows\\Fonts\\Consolas.ttc")
+# NOTE
+#   Windows と macOS で同等の役割のフォントを割り当てている。
+#   FAMILY は Tk 側、PATH は PIL 側で使う。
+if sys.platform == "darwin":
+    DEFAULT_FONT_FAMILY = "Hiragino Sans"
+    DEFAULT_FONT_PATH = Path("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc")
+    OVERLAY_FONT_FAMILY = "Hiragino Sans"
+    OVERLAY_FONT_PATH = Path("/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc")
+    NUMERIC_FONT_FAMILY = "Menlo"
+    NUMERIC_FONT_PATH = Path("/System/Library/Fonts/Menlo.ttc")
+else:
+    DEFAULT_FONT_FAMILY = "Yu Gothic UI"
+    DEFAULT_FONT_PATH = Path("C:\\Windows\\Fonts\\YuGothM.ttc")
+    OVERLAY_FONT_FAMILY = "Meiryo UI Bold"
+    OVERLAY_FONT_PATH = Path("C:\\Windows\\Fonts\\Meiryob.ttc")
+    NUMERIC_FONT_FAMILY = "Consolas"
+    NUMERIC_FONT_PATH = Path("C:\\Windows\\Fonts\\Consolas.ttc")
 
 # バージョン情報ファイルのパス
-VERSION_FILE_PATH = Path("src\\utils\\version_constants.py")
+VERSION_FILE_PATH = Path("src") / "utils" / "version_constants.py"
+
+# 各種データの保存先
+# NOTE
+#   Windows 版は「実行ファイルと同じ階層」に全部を置く。
+#   macOS では .app の中に書き込めないうえ、
+#   .app から起動するとカレントディレクトリが / になるため、
+#   OS の作法どおりホーム以下の定位置に置く。
+if sys.platform == "darwin":
+    _PICTURES_DIR_PATH = Path.home() / "Pictures" / APP_NAME_EN
+    _SUPPORT_DIR_PATH = Path.home() / "Library" / "Application Support" / APP_NAME_EN
+    _LOG_DIR_PATH = Path.home() / "Library" / "Logs" / APP_NAME_EN
+else:
+    _PICTURES_DIR_PATH = Path.cwd()
+    _SUPPORT_DIR_PATH = Path.cwd()
+    _LOG_DIR_PATH = Path.cwd() / "log"
 
 # ユーザープロパティファイルのパス
-USER_PROPERTIES_FILE_PATH = Path.cwd() / "user_properties.json"
+USER_PROPERTIES_FILE_PATH = _SUPPORT_DIR_PATH / "user_properties.json"
 
 # ライセンス関係のパス
 AIS_LICENSE_FILE_PATH = Path.cwd() / "LICENSE"
@@ -47,11 +74,11 @@ LICENSES_DIR_PATH = Path.cwd() / "licenses"
 # NOTE
 #   nime はリサイズなどの処理適用済みの最終結果画像の保存先
 #   raw は処理適用前のオリジナルのキャプチャ画像の保存先
-NIME_DIR_PATH = Path.cwd() / "nime"
-TENSEI_DIR_PATH = Path.cwd() / "tensei"
-RAW_DIR_PATH = Path.cwd() / "raw"
-LOG_DIR_PATH = Path.cwd() / "log"
-TOOL_DIR_PATH = Path.cwd() / "tools"
+NIME_DIR_PATH = _PICTURES_DIR_PATH / "nime"
+TENSEI_DIR_PATH = _PICTURES_DIR_PATH / "tensei"
+RAW_DIR_PATH = _PICTURES_DIR_PATH / "raw"
+LOG_DIR_PATH = _LOG_DIR_PATH
+TOOL_DIR_PATH = _SUPPORT_DIR_PATH / "tools"
 
 # サムネイルの高さ方向のサイズ
 THUMBNAIL_HEIGHT = 120

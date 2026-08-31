@@ -1,3 +1,6 @@
+# std
+import sys
+
 # Tk/CTk
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD
@@ -50,7 +53,12 @@ class AynimeIssenStyleApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.title(APP_NAME_JP)
 
         # アイコンを設定
-        self.iconbitmap(resource_path("app.ico"))
+        # NOTE
+        #   .ico は Windows の Tk しか解釈できない。
+        #   macOS のアイコンは .app バンドル側（Info.plist + .icns）で与えるので、
+        #   ここでは何もしない。
+        if sys.platform == "win32":
+            self.iconbitmap(resource_path("app.ico"))
 
         # 初期サイズを設定
         place_window_to_display_center(self, WINDOW_INIT_WIDTH, WINDOW_INIT_HEIGHT)

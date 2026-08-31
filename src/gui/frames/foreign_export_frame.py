@@ -16,7 +16,7 @@ from utils.image import (
 )
 from utils.image import ExportTarget
 from utils.metadata import AspectRatioPattern, PlaybackMode, ResolutionPattern
-from utils.windows import file_to_clipboard
+from utils.platform import file_to_clipboard
 from utils.ctk import show_notify_label, show_error_dialog
 from utils.capture import *
 from utils.constants import (

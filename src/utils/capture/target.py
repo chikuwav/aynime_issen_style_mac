@@ -1,15 +1,11 @@
 # std
 from typing import Generator
 from dataclasses import dataclass
-from copy import deepcopy
 import re
-
-# win32
-import win32gui, win32con
+import sys
 
 # utils
 from utils.std import replace_multi
-from utils.windows import is_cloaked, sanitize_text
 
 
 @dataclass
@@ -26,91 +22,23 @@ class MonitorIdentifier:
 class WindowHandle:
     """
     ウィンドウ識別子を保持するクラス
+
+    NOTE
+        Windows では HWND、macOS では CGWindowID を保持する。
+        どちらも整数なので、この型はそのまま両対応できる。
     """
 
     value: int
 
 
-def enumerate_windows() -> Generator[WindowHandle, None, None]:
-    # 全てのウィンドウハンドルを列挙
-    hwnds: list[int] = []
-
-    def enum_handler(hwnd: int, _):
-        hwnds.append(hwnd)
-
-    win32gui.EnumWindows(enum_handler, None)
-
-    # 合法なウィンドウを順番に返す
-    for hwnd in hwnds:
-        # 不可視ウィンドウはスキップ
-        if not win32gui.IsWindowVisible(hwnd):
-            continue
-
-        # 最小化されているウィンドウはスキップ
-        if win32gui.IsIconic(hwnd):
-            continue
-
-        # クローク状態のウィンドウはスキップ
-        if is_cloaked(hwnd):
-            continue
-
-        # サイズを持たないウィンドウはスキップ
-        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-        if right - left <= 0 or bottom - top <= 0:
-            continue
-
-        # オーナーが居るウィンドウはスキップ
-        if win32gui.GetWindow(hwnd, win32con.GW_OWNER):
-            continue
-
-        # タイトルでフィルタ
-        # NOTE
-        #   空タイトルはダメ
-        #   Program Manager は何故か残っちゃうので名指しで除外
-        title, _ = get_nime_window_text(WindowHandle(hwnd))
-        if not title:
-            continue
-        elif title == "Program Manager":
-            continue
-
-        # ウィンドウ情報を生成して返す
-        yield WindowHandle(hwnd)
-
-
-def get_nime_window_text(window_handle: WindowHandle) -> tuple[str, bool]:
+def _parse_nime_title(text: str) -> tuple[str, bool]:
     """
-    一閃流的に都合の良いように加工されたウィンドウ名を取得する。
-    平たく言えば、ウィンドウ名からアニメ名を抽出する。
+    ブラウザのページタイトルからアニメ名を抽出する。
+
+    配信サービスごとの命名規則を扱う。
+    ここは OS に依存しないので、Windows / macOS で共有する。
     (加工された名前, えぃにめか？) を返す。
     """
-    # None は空文字列化
-    if window_handle is None:
-        return "", False
-
-    # ウィンドウ名を取得
-    text = win32gui.GetWindowText(window_handle.value)
-    text = sanitize_text(text)
-    if len(text) == 0:
-        return "", False
-
-    # アプリの種類で分岐
-    # NOTE
-    #   ブラウザの場合はアニメ名が取れるので、末尾のアプリ名だけ取って続行。
-    #   それ以外は断念
-    if text.endswith("Mozilla Firefox"):
-        text = text.replace(" - Mozilla Firefox", "")
-    elif text.endswith("Google Chrome"):
-        text = text.replace(" - Google Chrome", "")
-    elif text.endswith(" - Discord"):
-        # NOTE
-        #   Discord の配信画面は、チャンネル名が返ってくる
-        #   そこにえぃにめは無い
-        text = text.replace(" - Discord", "")
-        return text, False
-    else:
-        # それ以外の非対応アプリ
-        return text, False
-
     # 配信サービス別の処理
     # NOTE
     #   アニメタイトルと話数は区別せずに１つの「アニメ名」とみなす。
@@ -159,3 +87,34 @@ def get_nime_window_text(window_handle: WindowHandle) -> tuple[str, bool]:
 
     # 正常終了
     return text, True
+
+
+# OS 別実装のディスパッチ
+if sys.platform == "win32":
+    from utils.capture.target_win32 import (
+        enumerate_windows,
+        get_browser_page_title,
+    )
+elif sys.platform == "darwin":
+    from utils.capture.target_darwin import (
+        enumerate_windows,
+        get_browser_page_title,
+    )
+else:
+    raise RuntimeError(f"Unsupported platform: {sys.platform}")
+
+
+def get_nime_window_text(window_handle: WindowHandle) -> tuple[str, bool]:
+    """
+    一閃流的に都合の良いように加工されたウィンドウ名を取得する。
+    平たく言えば、ウィンドウ名からアニメ名を抽出する。
+    (加工された名前, えぃにめか？) を返す。
+    """
+    if window_handle is None:
+        return "", False
+    text, is_browser = get_browser_page_title(window_handle)
+    if not text:
+        return "", False
+    if not is_browser:
+        return text, False
+    return _parse_nime_title(text)
