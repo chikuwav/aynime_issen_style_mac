@@ -4,7 +4,6 @@
 
 **原作は [Nu-Pan/aynime_issen_style](https://github.com/Nu-Pan/aynime_issen_style)（Windows 専用）です。**
 本リポジトリはその fork で、**原作に忠実に macOS へ移植したもの**です。
-原作者の許可を得て公開しています。
 
 - **機能は原作と同じ**です。macOS 版独自の機能・改善・拡張は一切入れていません
 - 挙動に迷う箇所は、すべて原作（Windows 版）のコードを正として実装しています
