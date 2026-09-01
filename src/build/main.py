@@ -30,6 +30,19 @@ BUNDLE_IDENTIFIER = "com.chikuwav.aynime-issen-style"
 DIST_APP_BUNDLE_PATH = DIST_APP_DIR_PATH / f"{APP_NAME_EN}.app"
 MINIMUM_SYSTEM_VERSION = "12.3"  # NOTE ScreenCaptureKit の要求
 
+# 同梱物のライセンス表示をまとめたファイル
+THIRD_PARTY_LICENSE_FILE_NAME = "THIRD-PARTY-LICENSES.txt"
+THIRD_PARTY_LICENSE_FILE_PATH = WORK_DIR_PATH / THIRD_PARTY_LICENSE_FILE_NAME
+
+# .app に同梱されるが、python のパッケージではないもの
+# NOTE
+#   これらのライセンス本文は licenses/ に置いてある。
+NATIVE_LICENSE_ENTRIES = [
+    ("Python", "python-LICENSE.txt"),
+    ("Tcl", "tcl-license.terms"),
+    ("Tk", "tk-license.terms"),
+]
+
 
 def clean_build_artifacts():
     """
@@ -65,6 +78,70 @@ def make_version_file():
     BUILD_DATE = '{build_date}'
     """
     open(VERSION_FILE_PATH, "w").write(cleandoc(version_constants_text))
+
+
+def make_third_party_license_file():
+    """
+    .app に同梱するものの著作権表示を 1 つのファイルにまとめる（macOS 版）
+
+    NOTE
+        pyinstaller で固めた .app には python 本体・Tcl/Tk・各パッケージが
+        そのまま入る。これらは MIT や BSD なので再配布できるが、
+        著作権表示を配布物に含めることが条件になっている。
+    NOTE
+        ffmpeg と gifsicle はここに含めない。
+        同梱しておらず、利用者が自分でインストールしたものを呼び出すだけなので、
+        こちらに表示義務は生じない。
+    """
+    from importlib import metadata
+
+    THIRD_PARTY_LICENSE_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    blocks = [
+        cleandoc(
+            f"""
+            {APP_NAME_EN} 同梱物の著作権表示
+
+            このアプリには、以下のソフトウェアがそのまま含まれています。
+            それぞれの著作権表示と許諾条件を、以下にそのまま掲載します。
+
+            なお ffmpeg と gifsicle はこのアプリに含まれていません。
+            利用者がインストールしたものを外部プログラムとして呼び出しています。
+            それらの条項は licenses/ 以下を参照してください。
+            """
+        )
+    ]
+
+    # python 本体と Tcl/Tk
+    for title, file_name in NATIVE_LICENSE_ENTRIES:
+        license_file_path = LICENSES_DIR_PATH / file_name
+        blocks.append(f"{'=' * 78}\n{title}\n{'=' * 78}\n")
+        blocks.append(license_file_path.read_text(encoding="utf-8", errors="replace"))
+
+    # python パッケージ
+    # NOTE
+    #   実際に同梱されるものを機械的に絞り込むのは難しい。
+    #   足りないより多い方が安全なので、インストール済みのものを全部載せる。
+    for dist in sorted(
+        metadata.distributions(), key=lambda d: (d.metadata["Name"] or "").lower()
+    ):
+        name = dist.metadata["Name"]
+        if not name or name == "aynime_capture_mac":
+            continue
+        license_texts = []
+        for file in dist.files or []:
+            if "licenses/" in str(file) or Path(file).name.upper().startswith(
+                ("LICENSE", "COPYING", "NOTICE")
+            ):
+                try:
+                    license_texts.append(file.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+        if not license_texts:
+            continue
+        blocks.append(f"{'=' * 78}\n{name} {dist.version}\n{'=' * 78}\n")
+        blocks.extend(license_texts)
+
+    THIRD_PARTY_LICENSE_FILE_PATH.write_text("\n".join(blocks), encoding="utf-8")
 
 
 def run_pyinstaller():
@@ -116,6 +193,8 @@ def _run_pyinstaller_darwin():
 
     aynime_capture_search_path = Path(aynime_capture.__file__).resolve().parent.parent
 
+    make_third_party_license_file()
+
     subprocess.run(
         [
             "pyinstaller",
@@ -137,6 +216,7 @@ def _run_pyinstaller_darwin():
             #   スプラッシュ画像として PIL から読まれる。同梱が要る。
             f"--add-data={APP_ICO_FILE_ABS_PATH}:.",
             f"--add-data={LICENSE_FILE_ABS_PATH}:.",
+            f"--add-data={THIRD_PARTY_LICENSE_FILE_PATH.resolve()}:.",
             f"--add-data={LICENSES_DIR_PATH.resolve()}:licenses",
             f"--distpath={DIST_APP_DIR_PATH}",
             f"--workpath={WORK_DIR_PATH}",
@@ -145,6 +225,13 @@ def _run_pyinstaller_darwin():
         check=True,
     )
     _fixup_info_plist()
+
+    # 素の onedir 出力を削除する
+    # NOTE
+    #   --windowed --onedir は .app と、それとは別に素のディレクトリの
+    #   両方を出力する。利用者に要るのは .app だけで、
+    #   そのまま zip に含めると配布物のサイズが倍になる。
+    shutil.rmtree(DIST_APP_DIR_PATH / APP_NAME_EN, ignore_errors=True)
 
 
 def _fixup_info_plist():
@@ -181,6 +268,11 @@ def put_files():
     shutil.copyfile(
         LICENSE_FILE_ABS_PATH, DIST_APP_DIR_PATH / LICENSE_FILE_ABS_PATH.name
     )
+    if sys.platform == "darwin":
+        shutil.copyfile(
+            THIRD_PARTY_LICENSE_FILE_PATH,
+            DIST_APP_DIR_PATH / THIRD_PARTY_LICENSE_FILE_NAME,
+        )
     DIST_APP_LICENSE_DIR_PATH.mkdir(parents=True, exist_ok=True)
     for p in LICENSES_DIR_PATH.glob("**/*.*"):
         shutil.copyfile(p, DIST_APP_LICENSE_DIR_PATH / p.name)
