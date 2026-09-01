@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
   # NOTE
   #   customtkinter は 5.2.2 に固定する。
-  #   本体は 5.2.2 系を前提に書かれていて、同梱の ctk_tabview.py も 5.2.2 の同ファイルと一致する。
+  #   本体は 5.2.2 系を前提に書かれている。
   #   次のリリースが 2 年半ぶりのメジャー更新（6.0.0）なので、追従は別途検証してから。
   "customtkinter==5.2.2",
   "CTkListbox",

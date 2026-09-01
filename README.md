@@ -1,7 +1,17 @@
 # えぃにめ一閃流奥義「一閃」 macOS 版
 
 アニメのスクショを撮って Discord に投げる営みを保証する GUI ツールの **macOS 版**です。
-原作（Windows 用）は [Nu-Pan/aynime_issen_style](https://github.com/Nu-Pan/aynime_issen_style)。
+
+**原作は [Nu-Pan/aynime_issen_style](https://github.com/Nu-Pan/aynime_issen_style)（Windows 専用）です。**
+本リポジトリはその fork で、**原作に忠実に macOS へ移植したもの**です。
+原作者の許可を得て公開しています。
+
+- **機能は原作と同じ**です。macOS 版独自の機能・改善・拡張は一切入れていません
+- 挙動に迷う箇所は、すべて原作（Windows 版）のコードを正として実装しています
+- 変更したのは「Windows でしか動かない部分を macOS で実現する」ためのコードだけです
+  （画面キャプチャ、グローバルホットキー、クリップボード、フォント、保存先、動画エンコーダ、配布形式）
+- Windows 側の挙動は変えていません。共通コードは両 OS で同じ結果になるようにしてあります
+
 使い方は原作の [wiki](https://github.com/Nu-Pan/aynime_issen_style/wiki/User's-Manual) がそのまま当てはまります。
 
 ---
@@ -109,12 +119,21 @@ brew install ffmpeg gifsicle
 
 ## 原作との関係
 
-- 本リポジトリは原作の fork。**macOS で動かすために必要な差分だけ**を持ちます
-- 原作にない機能・改善・拡張は入れません。挙動に迷ったら原作（Windows 版）を正とします
-- Windows 側の挙動は変えません。共通コードは両 OS で同じ結果になるようにしてあります
-- **原作リポジトリへは変更を送りません**
+- 本リポジトリは原作の fork です。**macOS で動かすために必要な差分だけ**を持ちます
 - キャプチャ部分は、Windows 版の `aynime_capture`（C++ / Windows.Graphics.Capture）ではなく、
   ScreenCaptureKit で実装した [chikuwav/aynime_capture_mac](https://github.com/chikuwav/aynime_capture_mac) を使います
+- **原作リポジトリへは変更を送りません。** このリポジトリのコードは AI が生成したもので、
+  原作の開発規約が AI エージェントによるファイル編集を禁じているためです。
+  原作に取り込んでほしい変更がある場合も、こちらから Pull Request を送ることはありません
+
+## 今後の課題
+
+- **Homebrew の cask で配る。** 個人 tap を用意すれば `brew install --cask` の 1 行で導入でき、
+  Gatekeeper の警告も出ず、ffmpeg / gifsicle も同時に入る。費用ゼロで利用者体験が一番良くなる
+- **Apple の公証（notarization）。** 起動時の警告を完全に消せるが、
+  Apple Developer Program（年 $99）の契約が必要。問い合わせが増えてから検討する
+- **ffmpeg 依存をなくす。** mp4 は `AVAssetWriter`（VideoToolbox）で直接書ける。
+  外部ツールのインストールが不要になるが、GIF の出力は別途考える必要がある
 
 ---
 
