@@ -201,6 +201,28 @@ def video_encode_h264(
         compat_extra_args.append([
             "-c:v", "h264_qsv"
         ])
+    if "h264_videotoolbox" in encoders:
+        # APPLE VIDEOTOOLBOX
+        # NOTE
+        #   macOS で唯一使えるハードウェアエンコーダ。
+        #   これが無いと mac では候補が空になる。
+        # NOTE
+        #   -q:v は 0 ... 100 で、大きいほど高画質。
+        #   720p 2 秒の実測では 70 で 379 KB(SSIM 0.9889)、
+        #   90 で 1565 KB(SSIM 0.9970)、無指定の既定が 1589 KB(SSIM 0.9954)。
+        #   「高画質・可変ビットレート・サイズは多少膨らんで良い」という方針に沿って 90 とした。
+        # NOTE
+        #   -q:v による固定品質は Apple Silicon でしか使えない。
+        #   Intel Mac では詳細指定が失敗するが、
+        #   その場合はエンコーダだけを指定した最小構成にフォールバックする。
+        detailed_extra_args.append([
+            "-c:v", "h264_videotoolbox",
+            "-profile:v", "main", # 互換性重視
+            "-q:v", "90"
+        ])
+        compat_extra_args.append([
+            "-c:v", "h264_videotoolbox"
+        ])
     # fmt: on
 
     # 試行引数リストを結合
