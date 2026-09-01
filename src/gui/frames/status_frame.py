@@ -97,11 +97,20 @@ class VersionFrame(AISFrame):
 
         # 表示用バージョン文字列
         version_text = f"""
-        Author
+        Original Author (原作者)
         \tNU-Pan
-        
-        GitHub
         \thttps://github.com/Nu-Pan/aynime_issen_style
+
+        macOS Port (macOS 版 制作者)
+        \tChikuwav
+        \thttps://github.com/chikuwav/aynime_issen_style_mac
+
+        Copyright 2025 NU-Pan
+        Copyright 2026 Chikuwav
+
+        本ソフトは NU-Pan 氏が制作した Windows 版
+        「えぃにめ一閃流奥義「一閃」」を原作とし、
+        その動作を再現した macOS 移植版です。
 
         User's Manual
         \thttps://github.com/Nu-Pan/aynime_issen_style/wiki/User's-Manual
@@ -185,9 +194,16 @@ class SoftwareLicenseEntry:
 
 SOFTWARE_LICENSE_ENTRIES = {
     APP_NAME_JP: SoftwareLicenseEntry(
-        f"{APP_NAME_JP}は MIT ライセンスで公開しています",
+        cleandoc(
+            f"""
+            {APP_NAME_JP}の原作者は NU-Pan 氏です。
+            本 macOS 版は Chikuwav が原作を再現・移植したものです。
+            Copyright 2025 NU-Pan / Copyright 2026 Chikuwav
+            原作・macOS 版ともに MIT ライセンスで公開しています。
+            """
+        ),
         "https://github.com/Nu-Pan/aynime_issen_style",
-        "https://github.com/Nu-Pan/aynime_issen_style/releases",
+        "https://github.com/chikuwav/aynime_issen_style_mac/releases",
         "MIT",
         AIS_LICENSE_FILE_PATH,
     ),
@@ -285,14 +301,17 @@ class LicenseFrame(AISFrame):
         else:
             # メッセージを設定
             if entry.message:
-                # fmt: off
-                msg = cleandoc(f"""
-                {entry.message}
-                公式: {entry.official_url}
-                ダウンロード: {entry.download_url}
-                ライセンス: {entry.license_name}
-                """)
-                # fmt: on
+                # NOTE
+                #   message は複数行になり得るので cleandoc は使えない
+                #   （インデント計算が崩れる）
+                msg = "\n".join(
+                    [
+                        entry.message,
+                        f"公式: {entry.official_url}",
+                        f"ダウンロード: {entry.download_url}",
+                        f"ライセンス: {entry.license_name}",
+                    ]
+                )
             else:
                 # fmt: off
                 msg = cleandoc(f"""
