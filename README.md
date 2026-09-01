@@ -163,17 +163,21 @@ brew install ffmpeg gifsicle
 
 ### セットアップ
 
+以降のコマンドはすべて**リポジトリのルートで実行**します
+（アプリがカレントディレクトリを基準に `LICENSE` や `licenses/` を読むため、
+実行・ビルドともにカレントディレクトリがルートである必要があります）。
+
+venv はリポジトリの中ではなく、**1つ上のディレクトリ**に作ります。
+
 ```
-python3.13 -m venv .venv
-.venv/bin/pip install -e .
+python3.13 -m venv ../.venv
+../.venv/bin/pip install -e .
 ```
 
 ### 実行
 
-リポジトリのルートで実行します（カレントディレクトリがルートである必要があります）。
-
 ```
-PYTHONPATH=src .venv/bin/python src/gui/main.py
+PYTHONPATH=src ../.venv/bin/python src/gui/main.py
 ```
 
 画面収録の許可は **起動元のアプリ**（ターミナルや VSCode）に紐づきます。許可を与えたら、そのアプリを再起動してください。
@@ -181,7 +185,7 @@ PYTHONPATH=src .venv/bin/python src/gui/main.py
 ### 配布物のビルド
 
 ```
-AIS_CODESIGN_IDENTITY="Competitive Screenshot Club" PATH=.venv/bin:$PATH PYTHONPATH=src .venv/bin/python -m build.main
+AIS_CODESIGN_IDENTITY="Competitive Screenshot Club" PATH="$PWD/../.venv/bin:$PATH" PYTHONPATH=src ../.venv/bin/python -m build.main
 ```
 
 `release/` に zip ができます。
