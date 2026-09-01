@@ -1,4 +1,5 @@
 import subprocess
+import os
 import shutil
 import sys
 from datetime import datetime
@@ -29,6 +30,17 @@ LICENSE_FILE_ABS_PATH = Path("LICENSE").resolve()
 BUNDLE_IDENTIFIER = "com.chikuwav.aynime-issen-style"
 DIST_APP_BUNDLE_PATH = DIST_APP_DIR_PATH / f"{APP_NAME_EN}.app"
 MINIMUM_SYSTEM_VERSION = "12.3"  # NOTE ScreenCaptureKit の要求
+
+# コード署名に使う identity
+# NOTE
+#   既定は "-"（ad-hoc 署名）。
+#   ad-hoc 署名は内容のハッシュそのものなので、ビルドし直すたびに変わる。
+#   画面収録の許可（TCC）は署名を手がかりにアプリを識別しているため、
+#   ビルドのたびに「別のアプリ」とみなされ、許可を与え直すことになる。
+#   （しかも、システム設定には古い許可が残ったままになる）
+#   環境変数 AIS_CODESIGN_IDENTITY に自己署名証明書の名前を入れておくと、
+#   その identity で署名し続けるので、許可がビルドをまたいで維持される。
+CODESIGN_IDENTITY = os.environ.get("AIS_CODESIGN_IDENTITY", "-")
 
 # 同梱物のライセンス表示をまとめたファイル
 THIRD_PARTY_LICENSE_FILE_NAME = "THIRD-PARTY-LICENSES.txt"
@@ -211,6 +223,7 @@ def _run_pyinstaller_darwin():
             "--collect-data=numpy",
             f"--icon={APP_ICNS_FILE_ABS_PATH}",
             f"--osx-bundle-identifier={BUNDLE_IDENTIFIER}",
+            f"--codesign-identity={CODESIGN_IDENTITY}",
             # NOTE
             #   .ico はアプリのアイコン（.icns）とは別に、
             #   スプラッシュ画像として PIL から読まれる。同梱が要る。
@@ -254,7 +267,13 @@ def _fixup_info_plist():
     #   その後に Info.plist を書き換えると署名が壊れるので、署名し直す。
     #   （codesign --verify が "invalid Info.plist" で落ちる状態になる）
     subprocess.run(
-        ["codesign", "--force", "--sign", "-", str(DIST_APP_BUNDLE_PATH)],
+        [
+            "codesign",
+            "--force",
+            "--sign",
+            CODESIGN_IDENTITY,
+            str(DIST_APP_BUNDLE_PATH),
+        ],
         check=True,
         capture_output=True,
     )
