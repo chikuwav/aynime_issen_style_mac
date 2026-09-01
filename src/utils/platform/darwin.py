@@ -11,6 +11,7 @@ from pathlib import Path
 import fcntl
 import os
 import queue
+import subprocess
 import warnings
 
 # TK/CTk
@@ -192,3 +193,20 @@ class SystemWideMutex:
             bool: すでに同名のミューテックスが存在しているなら True
         """
         return self._already_exists
+
+
+def open_directory(dir_path: Path) -> None:
+    """
+    dir_path の指すディレクトリを Finder で開く。
+
+    Windows 版の os.startfile に相当する。
+
+    NOTE
+        まだ一度もキャプチャしていない場合はディレクトリが存在せず、
+        open コマンドが失敗する。そのため、先に作る。
+
+    Args:
+        dir_path (Path): 開きたいディレクトリのパス
+    """
+    dir_path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["open", str(dir_path)], check=True)

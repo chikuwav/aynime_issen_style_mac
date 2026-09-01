@@ -3,7 +3,6 @@ from inspect import cleandoc
 import re
 import webbrowser
 import sys
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +23,7 @@ from utils.constants import (
 )
 from utils.ais_logging import write_log
 from utils.user_properties import USER_PROPERTIES
+from utils.platform import open_directory
 from utils.ensure_web_tool import DEFAULT_FFMPEG_ZIP_URL, DEFAULT_GIFSCICLE_ZIP_URL
 
 
@@ -64,7 +64,7 @@ class ShortcutFrame(AISFrame):
             text="OPEN NIME FOLDER",
             width=3 * WIDGET_MIN_WIDTH,
             height=WIDGET_MIN_HEIGHT,
-            command=lambda: os.startfile(NIME_DIR_PATH),
+            command=lambda: open_directory(NIME_DIR_PATH),
         )
         self.ais.grid_child(self._nime_button, 0, 0, sticky="")
 
@@ -74,7 +74,7 @@ class ShortcutFrame(AISFrame):
             text="OPEN TENSEI FOLDER",
             width=3 * WIDGET_MIN_WIDTH,
             height=WIDGET_MIN_HEIGHT,
-            command=lambda: os.startfile(TENSEI_DIR_PATH),
+            command=lambda: open_directory(TENSEI_DIR_PATH),
         )
         self.ais.grid_child(self._tensei_button, 1, 0, sticky="")
 
