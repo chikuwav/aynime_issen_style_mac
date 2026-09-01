@@ -21,15 +21,21 @@ classifiers = [
   "License :: OSI Approved :: MIT License"
 ]
 dependencies = [
-  "customtkinter",
+  # NOTE
+  #   customtkinter は 5.2.2 に固定する。
+  #   本体は 5.2.2 系を前提に書かれていて、同梱の ctk_tabview.py も 5.2.2 の同ファイルと一致する。
+  #   次のリリースが 2 年半ぶりのメジャー更新（6.0.0）なので、追従は別途検証してから。
+  "customtkinter==5.2.2",
   "CTkListbox",
-  "aynime_capture @ git+https://github.com/Nu-Pan/aynime_capture",
+  "aynime_capture @ git+https://github.com/Nu-Pan/aynime_capture ; sys_platform == 'win32'",
+  "aynime_capture @ git+https://github.com/chikuwav/aynime_capture_mac ; sys_platform == 'darwin'",
   "numpy",
   "packaging",
   "pillow",
   "scikit-image",
   "tkinterdnd2",
-  "pywin32",
+  "pywin32 ; sys_platform == 'win32'",
+  "quickmachotkey ; sys_platform == 'darwin'",
   "black",
   "pyinstaller"
 ]

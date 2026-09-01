@@ -6,15 +6,20 @@ macOS 版の OS 依存機能。
 
 # std
 from typing import Callable
+from inspect import cleandoc
 from pathlib import Path
 import fcntl
 import os
+import queue
+import warnings
 
 # TK/CTk
 import customtkinter as ctk
 
 # macOS
 from AppKit import NSPasteboard, NSURL
+from quickmachotkey import quickHotKey, mask
+from quickmachotkey import constants as qmhk_constants
 
 # utils
 from utils.ais_logging import write_log
@@ -44,17 +49,34 @@ def file_to_clipboard(file_path: Path) -> None:
         raise RuntimeError(f"Failed to put {file_path} on the pasteboard")
 
 
+def _resolve_virtual_key(key_ch: str) -> int:
+    """
+    文字から macOS の仮想キーコードを解決する。
+
+    NOTE
+        Windows 版は ord(key_ch.upper()) をそのまま仮想キーコードとして使えるが、
+        macOS の仮想キーコードは ASCII と何の関係もない（kVK_ANSI_A = 0）。
+        そのため変換表が要る。
+    """
+    virtual_key = getattr(qmhk_constants, f"kVK_ANSI_{key_ch}", None)
+    if virtual_key is None:
+        raise ValueError(f"Unsupported hotkey character ({key_ch})")
+    return virtual_key
+
+
 class GlobalHotkey:
     """
     グローバルホットキーをトリガーにハンドラーを呼び出すクラス。
 
     NOTE
-        現時点では未実装のスタブ。
-        登録は受け付けるが、キーを押しても何も起きない。
-        Carbon の RegisterEventHotKey (quickmachotkey) で実装する予定。
+        Carbon の RegisterEventHotKey を quickmachotkey 経由で使う。
+        NSEvent のグローバルモニタと違って「入力監視」の許可が要らない。
     """
 
     type Handler = Callable[[], None]
+
+    # 定数
+    MOD = mask(qmhk_constants.controlKey, qmhk_constants.optionKey)
 
     def __init__(self, ctk_app: ctk.CTk):
         """
@@ -62,10 +84,41 @@ class GlobalHotkey:
 
         ctk_app:
             CTk アプリインスタンス。
-            将来、ホットキー押下をメインスレッドへ橋渡しするのに使う。
+            メッセージのポーリングに使われる。
         """
-        self._ctk_app = ctk_app
+        # キー：ハンドラーマップ
         self._key_handler_map: dict[str, list["GlobalHotkey.Handler"]] = dict()
+
+        # 登録済みホットキーの保持先
+        # NOTE
+        #   quickHotKey が返すオブジェクトを捨てると、
+        #   ガベージコレクトされた時に登録が解除されうる。
+        self._registered: dict[str, object] = dict()
+
+        # グローバルホットキー押下イベント通知キュー
+        # NOTE
+        #   ctk の機能を Carbon のハンドラから呼び出すとクラッシュする（ctk はマルチスレッド非対応）
+        #   そのため、このキューを介してメインスレッドへホットキー押下を通知する。
+        self._ghk_event_queue = queue.SimpleQueue[str]()
+
+        # グローバルホットキーイベントポーリング関数
+        def poll_ghk_event():
+            while not self._ghk_event_queue.empty():
+                key_ch = self._ghk_event_queue.get()
+                handlers = self._key_handler_map.get(key_ch)
+                if handlers is not None:  # NOTE 未登録キーは飛ばす
+                    for handler in handlers:
+                        try:
+                            handler()
+                        except Exception as e:
+                            warn_text = """
+                            Unexpected exception raised in poll_ghk_event.
+                            """
+                            warnings.warn(cleandoc(warn_text))
+            ctk_app.after(10, poll_ghk_event)
+
+        # ポーリング処理をキック
+        ctk_app.after(0, poll_ghk_event)
 
     def register(self, key_ch: str, handler: Handler) -> None:
         """
@@ -77,13 +130,31 @@ class GlobalHotkey:
         handler:
             ホットキーで呼び出されるハンドラ
         """
+        # 仮想キー番号を解決
         if len(key_ch) != 1:
             raise ValueError("key_ch must be a single character")
-        self._key_handler_map.setdefault(key_ch.upper(), []).append(handler)
-        write_log(
-            "warning",
-            f"Global hotkey Ctrl+Alt+{key_ch.upper()} is not implemented on macOS yet.",
-        )
+        else:
+            key_ch = key_ch.upper()
+            virtual_key = _resolve_virtual_key(key_ch)
+
+        # すでに登録されているキーならハンドラ追加だけ
+        if key_ch in self._key_handler_map:
+            self._key_handler_map[key_ch].append(handler)
+            return
+
+        # キー・ハンドラーマップに登録
+        self._key_handler_map[key_ch] = [handler]
+
+        # ホットキーを登録
+        # NOTE
+        #   Carbon のハンドラがどのスレッドで呼ばれるか保証がないので、
+        #   ここではキューに積むだけにする。
+        def on_hotkey() -> None:
+            self._ghk_event_queue.put(key_ch)
+
+        self._registered[key_ch] = quickHotKey(
+            virtualKey=virtual_key, modifierMask=GlobalHotkey.MOD
+        )(on_hotkey)
 
 
 class SystemWideMutex:
