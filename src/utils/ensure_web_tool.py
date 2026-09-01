@@ -179,6 +179,14 @@ DEFAULT_FFMPEG_ZIP_URL = (
 # fmt: on
 
 
+# Homebrew の標準的なインストール先
+# NOTE
+#   .app を Finder から起動すると PATH は /usr/bin:/bin:/usr/sbin:/sbin だけになる。
+#   Homebrew の場所は含まれないので、PATH に無ければここも見る。
+#   前者が Apple Silicon、後者が Intel の既定値。
+_HOMEBREW_BIN_DIR_PATHS = ("/opt/homebrew/bin", "/usr/local/bin")
+
+
 def _ensure_path_tool(tool_name: str) -> Path:
     """
     PATH 上にあるツールを探す。
@@ -188,7 +196,9 @@ def _ensure_path_tool(tool_name: str) -> Path:
         macOS 向けの公式なポータブルビルドが存在しない。
         当面は Homebrew などで入れてもらう前提とし、PATH から探す。
     """
-    tool_path = shutil.which(tool_name)
+    tool_path = shutil.which(tool_name) or shutil.which(
+        tool_name, path=os.pathsep.join(_HOMEBREW_BIN_DIR_PATHS)
+    )
     if tool_path is None:
         raise FileNotFoundError(
             f"{tool_name} が見つかりません。`brew install {tool_name}` でインストールしてください。"

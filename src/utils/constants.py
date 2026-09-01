@@ -2,6 +2,9 @@
 from pathlib import Path
 import sys
 
+# utils
+from utils.pyinstaller import resource_path
+
 
 # アプリ名
 APP_NAME_EN = "aynime_issen_style"
@@ -67,8 +70,16 @@ else:
 USER_PROPERTIES_FILE_PATH = _SUPPORT_DIR_PATH / "user_properties.json"
 
 # ライセンス関係のパス
-AIS_LICENSE_FILE_PATH = Path.cwd() / "LICENSE"
-LICENSES_DIR_PATH = Path.cwd() / "licenses"
+# NOTE
+#   .app から起動するとカレントディレクトリが / になるので、
+#   macOS ではバンドルに同梱したものを見る。
+#   Windows は実行ファイルと同じ階層に置かれるので、元のままで良い。
+if sys.platform == "darwin":
+    AIS_LICENSE_FILE_PATH = Path(resource_path("LICENSE"))
+    LICENSES_DIR_PATH = Path(resource_path("licenses"))
+else:
+    AIS_LICENSE_FILE_PATH = Path.cwd() / "LICENSE"
+    LICENSES_DIR_PATH = Path.cwd() / "licenses"
 
 # キャプチャ保存先
 # NOTE

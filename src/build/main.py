@@ -1,9 +1,11 @@
 import subprocess
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 from inspect import cleandoc
 from pathlib import Path
+import plistlib
 import shutil
 
 from utils.constants import VERSION_FILE_PATH, APP_NAME_EN, LICENSES_DIR_PATH
@@ -17,7 +19,16 @@ WORK_DIR_PATH = BUILD_DIR_PATH / "temp"
 SPEC_DIR_PATH = BUILD_DIR_PATH / "spec"
 ZIP_OUTPUT_DIR = Path("release")
 APP_ICO_FILE_ABS_PATH = Path("app.ico").resolve()
+APP_ICNS_FILE_ABS_PATH = Path("app.icns").resolve()
 LICENSE_FILE_ABS_PATH = Path("LICENSE").resolve()
+
+# macOS の .app 関係
+# NOTE
+#   バンドル識別子は画面収録の許可（TCC）の紐づけ先になる。
+#   変えると許可を与え直すことになるので、固定する。
+BUNDLE_IDENTIFIER = "com.chikuwav.aynime-issen-style"
+DIST_APP_BUNDLE_PATH = DIST_APP_DIR_PATH / f"{APP_NAME_EN}.app"
+MINIMUM_SYSTEM_VERSION = "12.3"  # NOTE ScreenCaptureKit の要求
 
 
 def clean_build_artifacts():
@@ -60,6 +71,9 @@ def run_pyinstaller():
     """
     pyinstaller を呼び出してビルド
     """
+    if sys.platform == "darwin":
+        _run_pyinstaller_darwin()
+        return
     subprocess.run(
         [
             "pyinstaller",
@@ -80,6 +94,82 @@ def run_pyinstaller():
             f"--specpath={SPEC_DIR_PATH}",
         ],
         check=True,
+    )
+
+
+def _run_pyinstaller_darwin():
+    """
+    pyinstaller を呼び出して .app をビルドする（macOS 版）
+    """
+    # NOTE
+    #   --onefile は使わない。
+    #   起動のたびに一時ディレクトリへ展開されるので、
+    #   画面収録の許可（TCC）の紐づけ先が安定しない。
+    # NOTE
+    #   ライセンス関係のファイルはバンドルの中に入れる。
+    #   .app から起動するとカレントディレクトリが / になるため、
+    #   実行ファイルと同じ階層に置く Windows 版のやり方が通用しない。
+    # NOTE
+    #   aynime_capture は editable install されていることがある。
+    #   その場合 pyinstaller が場所を解決できないので、実際の場所を渡してやる。
+    import aynime_capture
+
+    aynime_capture_search_path = Path(aynime_capture.__file__).resolve().parent.parent
+
+    subprocess.run(
+        [
+            "pyinstaller",
+            "src/gui/main.py",
+            f"--name={APP_NAME_EN}",
+            "--onedir",
+            "--strip",
+            "--noconsole",
+            "--log-level=WARN",
+            f"--paths={aynime_capture_search_path}",
+            "--collect-binaries=aynime_capture",
+            "--collect-submodules=numpy",
+            "--collect-submodules=aynime_capture",
+            "--collect-data=numpy",
+            f"--icon={APP_ICNS_FILE_ABS_PATH}",
+            f"--osx-bundle-identifier={BUNDLE_IDENTIFIER}",
+            # NOTE
+            #   .ico はアプリのアイコン（.icns）とは別に、
+            #   スプラッシュ画像として PIL から読まれる。同梱が要る。
+            f"--add-data={APP_ICO_FILE_ABS_PATH}:.",
+            f"--add-data={LICENSE_FILE_ABS_PATH}:.",
+            f"--add-data={LICENSES_DIR_PATH.resolve()}:licenses",
+            f"--distpath={DIST_APP_DIR_PATH}",
+            f"--workpath={WORK_DIR_PATH}",
+            f"--specpath={SPEC_DIR_PATH}",
+        ],
+        check=True,
+    )
+    _fixup_info_plist()
+
+
+def _fixup_info_plist():
+    """
+    .app の Info.plist に足りないキーを書き込む（macOS 版）
+    """
+    plist_file_path = DIST_APP_BUNDLE_PATH / "Contents" / "Info.plist"
+    with plist_file_path.open("rb") as f:
+        plist = plistlib.load(f)
+    # NOTE
+    #   ScreenCaptureKit が macOS 12.3 以降を要求する。
+    plist["LSMinimumSystemVersion"] = MINIMUM_SYSTEM_VERSION
+    # NOTE
+    #   これが無いと Retina でぼやける。
+    plist["NSHighResolutionCapable"] = True
+    with plist_file_path.open("wb") as f:
+        plistlib.dump(plist, f)
+    # NOTE
+    #   pyinstaller は .app を ad-hoc 署名する。
+    #   その後に Info.plist を書き換えると署名が壊れるので、署名し直す。
+    #   （codesign --verify が "invalid Info.plist" で落ちる状態になる）
+    subprocess.run(
+        ["codesign", "--force", "--sign", "-", str(DIST_APP_BUNDLE_PATH)],
+        check=True,
+        capture_output=True,
     )
 
 
@@ -109,9 +199,25 @@ def zip_executable():
     ZIP_OUTPUT_DIR.mkdir(exist_ok=True)
 
     # zip ファイルに圧縮
-    shutil.make_archive(
-        base_name=str(zip_file_base_path), format="zip", root_dir=DIST_DIR_PATH
-    )
+    # NOTE
+    #   .app はシンボリックリンクを含むので、macOS では ditto を使う。
+    #   zipfile 経由だとリンクが実体化されて、バンドルが壊れる。
+    if sys.platform == "darwin":
+        subprocess.run(
+            [
+                "ditto",
+                "-c",
+                "-k",
+                "--keepParent",
+                str(DIST_APP_DIR_PATH),
+                str(zip_file_base_path.with_suffix(".zip")),
+            ],
+            check=True,
+        )
+    else:
+        shutil.make_archive(
+            base_name=str(zip_file_base_path), format="zip", root_dir=DIST_DIR_PATH
+        )
 
 
 def main():

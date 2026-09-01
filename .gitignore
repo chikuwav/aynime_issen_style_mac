@@ -13,3 +13,4 @@ __pycache__
 *.egg-info
 /proposal/*
 /user_properties.json
+.DS_Store
