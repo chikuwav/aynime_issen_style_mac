@@ -12,12 +12,14 @@ if sys.platform == "win32":
         file_to_clipboard,
         GlobalHotkey,
         SystemWideMutex,
+        open_directory,
     )
 elif sys.platform == "darwin":
     from utils.platform.darwin import (
         file_to_clipboard,
         GlobalHotkey,
         SystemWideMutex,
+        open_directory,
     )
 else:
     raise RuntimeError(f"Unsupported platform: {sys.platform}")
@@ -26,4 +28,5 @@ __all__ = [
     "file_to_clipboard",
     "GlobalHotkey",
     "SystemWideMutex",
+    "open_directory",
 ]

@@ -1,5 +1,6 @@
 # std
 from typing import Callable, Any
+import os
 import threading
 import queue
 import warnings
@@ -194,3 +195,14 @@ def is_cloaked(hwnd: int) -> bool:
         hwnd, DWMWA_CLOAKED, ctypes.byref(cloaked), ctypes.sizeof(cloaked)
     )
     return res == 0 and cloaked.value != 0
+
+
+def open_directory(dir_path: Path) -> None:
+    """
+    dir_path の指すディレクトリをエクスプローラーで開く。
+
+    Args:
+        dir_path (Path): 開きたいディレクトリのパス
+    """
+    dir_path.mkdir(parents=True, exist_ok=True)
+    os.startfile(dir_path)
