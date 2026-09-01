@@ -92,6 +92,33 @@ def make_version_file():
     open(VERSION_FILE_PATH, "w").write(cleandoc(version_constants_text))
 
 
+def _is_license_file(file) -> bool:
+    """
+    dist が持つファイルがライセンス本文かどうかを判定する
+
+    NOTE
+        パッケージの中身まで名前で拾うと、ライセンスと無関係なファイルが
+        混ざる（pyobjc-core の copying.cpython-313-darwin.so.dSYM など）。
+        本文が置かれるのは dist-info の下だけなので、そこに限定する。
+    """
+    parts = Path(file).parts
+    if not any(part.endswith(".dist-info") for part in parts):
+        return False
+    if "licenses" in parts:
+        return True
+    return Path(file).name.upper().startswith(("LICENSE", "COPYING", "NOTICE"))
+
+
+def _license_fallback_file_name(dist_name: str) -> str | None:
+    """
+    wheel にライセンス本文が入っていないパッケージ向けに、
+    licenses/ に置いてある代替の本文のファイル名を返す
+    """
+    if dist_name.lower().startswith("pyobjc"):
+        return "pyobjc-MIT.txt"
+    return None
+
+
 def make_third_party_license_file():
     """
     .app に同梱するものの著作権表示を 1 つのファイルにまとめる（macOS 版）
@@ -133,6 +160,7 @@ def make_third_party_license_file():
     # NOTE
     #   実際に同梱されるものを機械的に絞り込むのは難しい。
     #   足りないより多い方が安全なので、インストール済みのものを全部載せる。
+    missing_names = []
     for dist in sorted(
         metadata.distributions(), key=lambda d: (d.metadata["Name"] or "").lower()
     ):
@@ -141,17 +169,37 @@ def make_third_party_license_file():
             continue
         license_texts = []
         for file in dist.files or []:
-            if "licenses/" in str(file) or Path(file).name.upper().startswith(
-                ("LICENSE", "COPYING", "NOTICE")
-            ):
-                try:
-                    license_texts.append(file.read_text(encoding="utf-8"))
-                except Exception:
-                    continue
+            if not _is_license_file(file):
+                continue
+            try:
+                license_texts.append(file.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+        # NOTE
+        #   wheel にライセンス本文を含めないパッケージがある（pyobjc など）。
+        #   同梱する以上は表示義務があるので、こちらで用意した本文を使う。
         if not license_texts:
+            fallback_file_name = _license_fallback_file_name(name)
+            if fallback_file_name is not None:
+                license_texts.append(
+                    (LICENSES_DIR_PATH / fallback_file_name).read_text(
+                        encoding="utf-8", errors="replace"
+                    )
+                )
+        if not license_texts:
+            missing_names.append(name)
             continue
         blocks.append(f"{'=' * 78}\n{name} {dist.version}\n{'=' * 78}\n")
         blocks.extend(license_texts)
+
+    # NOTE
+    #   本文が 1 つも見つからなかったものは、表示義務を取りこぼしている
+    #   可能性がある。黙って落とさず、ビルドログに出す。
+    if missing_names:
+        print(
+            "WARNING: ライセンス本文が見つからないパッケージ: "
+            + ", ".join(missing_names)
+        )
 
     THIRD_PARTY_LICENSE_FILE_PATH.write_text("\n".join(blocks), encoding="utf-8")
 
