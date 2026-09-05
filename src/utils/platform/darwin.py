@@ -132,11 +132,19 @@ class GlobalHotkey:
             ホットキーで呼び出されるハンドラ
         """
         # 仮想キー番号を解決
+        # NOTE
+        #   ホットキーの文字は user_properties.json から変更できるので、
+        #   macOS の仮想キーに変換できない文字が来る場合がある。
+        #   Windows 版と同じく、登録に失敗した場合は無視して続行する。
         if len(key_ch) != 1:
-            raise ValueError("key_ch must be a single character")
-        else:
-            key_ch = key_ch.upper()
+            write_log("warning", f"Failed to register global hotkey ({key_ch})")
+            return
+        key_ch = key_ch.upper()
+        try:
             virtual_key = _resolve_virtual_key(key_ch)
+        except ValueError:
+            write_log("warning", f"Failed to register global hotkey Ctrl + Alt + {key_ch}")
+            return
 
         # すでに登録されているキーならハンドラ追加だけ
         if key_ch in self._key_handler_map:
@@ -150,6 +158,10 @@ class GlobalHotkey:
         # NOTE
         #   Carbon のハンドラがどのスレッドで呼ばれるか保証がないので、
         #   ここではキューに積むだけにする。
+        # NOTE
+        #   他のアプリが同じホットキーを既に握っている場合、
+        #   RegisterEventHotKey は失敗するが quickmachotkey は例外を投げない。
+        #   ホットキーが効かないだけで、アプリはそのまま動く。
         def on_hotkey() -> None:
             self._ghk_event_queue.put(key_ch)
 
